@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IPTV Player</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #f0f0f0; color: #333; }
+    header { background: #222; color: #fff; padding: 15px; text-align: center; }
+    main { padding: 20px; }
+    .container { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+    .channel-list { flex: 1 1 250px; max-width: 300px; background: #fff; padding: 15px; border: 1px solid #ccc; height: 500px; overflow-y: auto; }
+    .category { padding: 10px; margin: 5px 0; background: #ddd; border-radius: 5px; cursor: pointer; text-align: center; transition: background 0.3s; }
+    .category:hover { background: #bbb; }
+    .video-player { flex: 2 1 500px; background: #fff; padding: 10px; border: 1px solid #ccc; }
+    video { width: 100%; height: 500px; background: #000; }
+    .home-btn { 
+      position: absolute; 
+      top: 20px; 
+      left: 20px; 
+      padding: 10px 20px; 
+      background-color: #007BFF; 
+      color: white; 
+      border: none; 
+      cursor: pointer;
+      font-size: 16px; 
+      border-radius: 5px;
+    }
+    .home-btn:hover { background-color: #0056b3; }
+    .search-box {
+      display: flex;
+      justify-content: center;
+      margin: 20px;
+    }
+    .search-box input {
+      width: 300px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .search-box button {
+      padding: 10px;
+      margin-left: 10px;
+      background: #007BFF;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <button class="home-btn" onclick="goHome()">Home</button>
+  <header><h1>IPTV Player</h1></header>
+  <div class="search-box">
+    <input type="text" id="m3uUrl" placeholder="Enter M3U URL" />
+    <button onclick="loadM3UFromInput()">Load</button>
+  </div>
+  <main>
+    <div class="container">
+      <div class="channel-list" id="channelList">
+        <h3>Categories</h3>
+      </div>
+      <div class="video-player">
+        <video id="videoPlayer" controls></video>
+      </div>
+    </div>
+  </main>
+  <script>
+    const categories = [
+      { name: "Free TV", url: "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8" },
+      { name: "IPTV Categories", url: "https://iptv-org.github.io/iptv/index.category.m3u" },
+      { name: "IPTV Languages", url: "https://iptv-org.github.io/iptv/index.language.m3u" },
+      { name: "IPTV Countries", url: "https://iptv-org.github.io/iptv/index.country.m3u" },
+      { name: "IPTV Regions", url: "https://iptv-org.github.io/iptv/index.region.m3u" },
+      { name: "NASA TV", url: "http://nasatv-lh.akamaihd.net/i/NASA_101@319270/master.m3u8" },
+      { name: "UStream Live", url: "http://iphone-streaming.ustream.tv/uhls/1524/streams/live/iphone/playlist.m3u8" },
+      { name: "Info7", url: "http://38.104.228.230:1938/info7/info7_512/playlist.m3u8" },
+      { name: "Sweet BCHA", url: "http://d1hya96e2cm7qi.cloudfront.net/Live/_definst_/sweetbcha1novD28_W_250.sdp/playlist.m3u8" }
+    ];
+    
+    function populateCategories() {
+      const channelList = document.getElementById("channelList");
+      channelList.innerHTML = "<h3>Categories</h3>";
+      categories.forEach(category => {
+        const button = document.createElement("div");
+        button.classList.add("category");
+        button.textContent = `${category.name}`;
+        button.addEventListener("click", () => loadM3U(category.url));
+        channelList.appendChild(button);
+      });
+    }
+    
+    function loadM3UFromInput() {
+      const url = document.getElementById("m3uUrl").value;
+      if (url) loadM3U(url);
+    }
+    
+    function loadM3U(url) {
+      fetch(url)
+        .then(response => response.text())
+        .then(text => parseM3U(text))
+        .catch(err => alert("Error loading m3u file: " + err));
+    }
+    
+    function parseM3U(content) {
+      const lines = content.split(/\r?\n/);
+      const channels = [];
+      let channelName = "";
+      for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        if (line.startsWith("#EXTINF:")) {
+          const commaIndex = line.indexOf(",");
+          channelName = (commaIndex !== -1) ? line.substring(commaIndex + 1).trim() : "Unknown Channel";
+        } else if (!line.startsWith("#")) {
+          if (channelName === "") channelName = "Unknown Channel";
+          channels.push({ name: channelName, url: line });
+          channelName = "";
+        }
+      }
+      displayChannels(channels);
+    }
+    
+    function displayChannels(channels) {
+      const channelList = document.getElementById("channelList");
+      channelList.innerHTML = "<h3>Channels</h3>";
+      channels.forEach(channel => {
+        const div = document.createElement("div");
+        div.classList.add("category");
+        div.textContent = channel.name;
+        div.addEventListener("click", () => playStream(channel.url));
+        channelList.appendChild(div);
+      });
+    }
+    
+    function playStream(url) {
+      const video = document.getElementById("videoPlayer");
+      video.src = url;
+      video.play();
+    }
+    
+    function goHome() {
+      populateCategories();
+    }
+    
+    populateCategories();
+  </script>
+</body>
+</html>
